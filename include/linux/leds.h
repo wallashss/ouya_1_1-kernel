@@ -17,6 +17,13 @@
 #include <linux/rwsem.h>
 #include <linux/timer.h>
 
+/* Used for player LEDs as found on game controllers from e.g. Nintendo, Sony. */
+#define LED_FUNCTION_PLAYER1 "player-1"
+#define LED_FUNCTION_PLAYER2 "player-2"
+#define LED_FUNCTION_PLAYER3 "player-3"
+#define LED_FUNCTION_PLAYER4 "player-4"
+#define LED_FUNCTION_PLAYER5 "player-5"
+
 struct device;
 /*
  * LED Core

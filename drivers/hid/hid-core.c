@@ -1067,6 +1067,54 @@ void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 }
 EXPORT_SYMBOL_GPL(hid_report_raw_event);
 
+
+/*
+ * Extract/implement a data field from/to a little endian report (bit array).
+ *
+ * Code sort-of follows HID spec:
+ *     http://www.usb.org/developers/hidpage/HID1_11.pdf
+ *
+ * While the USB HID spec allows unlimited length bit fields in "report
+ * descriptors", most devices never use more than 16 bits.
+ * One model of UPS is claimed to report "LINEV" as a 32-bit field.
+ * Search linux-kernel and linux-usb-devel archives for "hid-core extract".
+ */
+
+static u32 __extract(u8 *report, unsigned offset, int n)
+{
+	unsigned int idx = offset / 8;
+	unsigned int bit_nr = 0;
+	unsigned int bit_shift = offset % 8;
+	int bits_to_copy = 8 - bit_shift;
+	u32 value = 0;
+	u32 mask = n < 32 ? (1U << n) - 1 : ~0U;
+
+	while (n > 0) {
+		value |= ((u32)report[idx] >> bit_shift) << bit_nr;
+		n -= bits_to_copy;
+		bit_nr += bits_to_copy;
+		bits_to_copy = 8;
+		bit_shift = 0;
+		idx++;
+	}
+
+	return value & mask;
+}
+
+u32 hid_field_extract(const struct hid_device *hid, u8 *report,
+			unsigned offset, unsigned n)
+{
+	if (n > 32) {
+		// hid_warn_once(hid, "%s() called with n (%d) > 32! (%s)\n",
+		// 	      __func__, n, current->comm);
+		n = 32;
+	}
+
+	return __extract(report, offset, n);
+}
+EXPORT_SYMBOL_GPL(hid_field_extract);
+
+
 /**
  * hid_input_report - report data from lower layer (usb, bt...)
  *
@@ -1264,7 +1312,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	if (ret)
 		hid_warn(hdev,
 			 "can't create sysfs report descriptor attribute err: %d\n", ret);
-
 	hid_info(hdev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
 		 buf, bus, hdev->version >> 8, hdev->version & 0xff,
 		 type, hdev->name, hdev->phys);
@@ -1526,6 +1573,8 @@ static const struct hid_device_id hid_have_special_driver[] = {
 
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_BT) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO, USB_DEVICE_ID_NINTENDO_WIIMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NINTENDO, USB_DEVICE_ID_NINTENDO_PROCON) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO, USB_DEVICE_ID_NINTENDO_PROCON) },
 	{ }
 };
 

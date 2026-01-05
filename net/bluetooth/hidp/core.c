@@ -272,12 +272,46 @@ static int __hidp_send_ctrl_message(struct hidp_session *session,
 	return 0;
 }
 
+static int __hidp_send_intr_message(struct hidp_session *session,
+			unsigned char hdr, unsigned char *data, int size)
+{
+	struct sk_buff *skb;
+
+	BT_DBG("session %p data %p size %d", session, data, size);
+
+	skb = alloc_skb(size + 1, GFP_ATOMIC);
+	if (!skb) {
+		BT_ERR("Can't allocate memory for new frame");
+		return -ENOMEM;
+	}
+
+	*skb_put(skb, 1) = hdr;
+	if (data && size > 0)
+		memcpy(skb_put(skb, size), data, size);
+
+	skb_queue_tail(&session->intr_transmit, skb);
+
+	return 0;
+}
+
 static inline int hidp_send_ctrl_message(struct hidp_session *session,
 			unsigned char hdr, unsigned char *data, int size)
 {
 	int err;
 
 	err = __hidp_send_ctrl_message(session, hdr, data, size);
+
+	hidp_schedule(session);
+
+	return err;
+}
+
+static inline int hidp_send_intr_message(struct hidp_session *session,
+			unsigned char hdr, unsigned char *data, int size)
+{
+	int err;
+
+	err = __hidp_send_intr_message(session, hdr, data, size);
 
 	hidp_schedule(session);
 
@@ -402,9 +436,25 @@ err_eio:
 	return -EIO;
 }
 
+static int hidp_output_report(struct hid_device *hid, __u8 *data, size_t count, unsigned char report_type)
+{
+	struct hidp_session *session = hid->driver_data;
+
+	
+	int ret = hidp_send_intr_message(session, report_type,
+				 data, count);
+
+	return ret;
+
+}
 static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, size_t count,
 		unsigned char report_type)
 {
+
+	if (report_type == HID_NINTENDO_OUTPUT_REPORT)
+	{
+		return hidp_output_report(hid, data, count, HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT);
+	}
 	struct hidp_session *session = hid->driver_data;
 	int ret;
 
@@ -503,6 +553,9 @@ static void hidp_process_handshake(struct hidp_session *session,
 			wake_up_interruptible(&session->report_queue);
 		}
 		/* FIXME: Call into SET_ GET_ handlers here */
+		/* Useful for future debugging */
+		BT_ERR("NOT_READY or INVALID_REPORT_ID or UNSUPPORTED_REQUEST or INVALID_PARAMETER: %d", (int) param);
+
 		break;
 
 	case HIDP_HSHK_ERR_UNKNOWN:

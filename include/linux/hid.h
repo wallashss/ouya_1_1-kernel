@@ -281,6 +281,10 @@ struct hid_item {
 #define HID_INPUT_REPORT	0
 #define HID_OUTPUT_REPORT	1
 #define HID_FEATURE_REPORT	2
+/*
+ * HACK: Non-standard report type for Nintendo extensions
+ */
+#define HID_NINTENDO_OUTPUT_REPORT	3
 
 /*
  * HID connect requests
@@ -521,6 +525,10 @@ struct hid_device {							/* device report descriptor */
 	__u32 battery;							/* Battery level */
 };
 
+
+#define to_hid_device(pdev) \
+	container_of(pdev, struct hid_device, dev)
+	
 static inline void *hid_get_drvdata(struct hid_device *hdev)
 {
 	return dev_get_drvdata(&hdev->dev);
@@ -720,6 +728,13 @@ int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
+
+int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len);
+
+
+__u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
+		     unsigned offset, unsigned n);
+
 
 /**
  * hid_map_usage - map usage input bits
