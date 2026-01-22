@@ -194,7 +194,7 @@
 #define BTN_DPAD_RIGHT		0x223
 #define MSC_TIMESTAMP		0x05
 #define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
-#define KEY_HOME		102
+
 
 // TODO: remove
 #define __enabled_CONFIG_NINTENDO_FF 0
@@ -338,9 +338,9 @@ static const u16 JC_RUMBLE_PERIOD_MS = 50;
 
 /* States for controller state machine */
 enum joycon_ctlr_state {
-	JOYCON_CTLR_STATE_INIT,
-	JOYCON_CTLR_STATE_READ,
-	JOYCON_CTLR_STATE_REMOVED,
+	JOYCON_CTLR_STATE_INIT = 0x00,
+	JOYCON_CTLR_STATE_READ = 0x01,
+	JOYCON_CTLR_STATE_REMOVED = 0x02,
 };
 
 /* Controller type received as part of device info */
@@ -389,9 +389,9 @@ static const u32 JC_BTN_L	= BIT(22);
 static const u32 JC_BTN_ZL	= BIT(23);
 
 enum joycon_msg_type {
-	JOYCON_MSG_TYPE_NONE,
-	JOYCON_MSG_TYPE_USB,
-	JOYCON_MSG_TYPE_SUBCMD,
+	JOYCON_MSG_TYPE_NONE = 0x00,
+	JOYCON_MSG_TYPE_USB = 0x01,
+	JOYCON_MSG_TYPE_SUBCMD = 0x02,
 };
 
 struct joycon_rumble_output {
@@ -1044,8 +1044,7 @@ static int joycon_set_report_mode(struct joycon_ctlr *ctlr)
 
 	req = (struct joycon_subcmd_request *)buffer;
 	req->subcmd_id = JC_SUBCMD_SET_REPORT_MODE;
-	// req->data[0] = 0x30; /* standard, full report mode */
-	req->data[0] = 0x3F; /* standard, full report mode */
+	req->data[0] = 0x30; /* standard, full report mode */
 
 	hid_dbg(ctlr->hdev, "setting controller report mode\n");
 	return joycon_send_subcmd(ctlr, req, 1, HZ);
@@ -1744,7 +1743,7 @@ static const unsigned int joycon_button_inputs_l[] = {
 static const unsigned int joycon_button_inputs_r[] = {
 	BTN_START, BTN_MODE, BTN_THUMBR,
 	BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST,
-	BTN_TR, BTN_TR2,
+	BTN_TR, BTN_TR2, KEYCODE_MENU,
 	0 /* 0 signals end of array */
 };
 
@@ -1766,7 +1765,10 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 
 	switch (hdev->product) {
 	case USB_DEVICE_ID_NINTENDO_PROCON:
-		name = "Nintendo Switch Pro Controller";
+		// GOTCHA - It seems that ouya only use this name to connect
+		// the events of this custom allocated device input.
+		// name = "Nintendo Switch Pro Controller";
+		name = "Pro Controller";
 		imu_name = "Nintendo Switch Pro Controller IMU";
 		break;
 	case USB_DEVICE_ID_NINTENDO_CHRGGRIP:
@@ -1806,6 +1808,8 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 
 	/* set up sticks and buttons */
 	if (jc_type_has_left(ctlr)) {
+		input_set_capability(ctlr->input, EV_ABS, ABS_X);
+		input_set_capability(ctlr->input, EV_ABS, ABS_Y);
 		input_set_abs_params(ctlr->input, ABS_X,
 				     -JC_MAX_STICK_MAG, JC_MAX_STICK_MAG,
 				     JC_STICK_FUZZ, JC_STICK_FLAT);
@@ -2332,8 +2336,9 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	 */
 	hdev->version |= 0x8000;
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT | HID_CONNECT_HIDDEV_FORCE);
+	// ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT | HID_CONNECT_HIDDEV_FORCE);
 	// ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+	ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW | HID_CONNECT_HIDDEV_FORCE);
 	if (ret) {
 		hid_err(hdev, "HW start failed\n");
 		goto err_wq;
