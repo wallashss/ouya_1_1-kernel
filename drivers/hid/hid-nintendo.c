@@ -196,9 +196,6 @@
 #define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
 
 
-// TODO: remove
-#define __enabled_CONFIG_NINTENDO_FF 0
-#define __enabled_CONFIG_NINTENDO_FF_MODULE 0
 #define ENABLE_NINTENDO_IMU 0
 
 
@@ -1743,7 +1740,7 @@ static const unsigned int joycon_button_inputs_l[] = {
 static const unsigned int joycon_button_inputs_r[] = {
 	BTN_START, BTN_MODE, BTN_THUMBR,
 	BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST,
-	BTN_TR, BTN_TR2, KEYCODE_MENU,
+	BTN_TR, BTN_TR2,
 	0 /* 0 signals end of array */
 };
 
